@@ -1,26 +1,33 @@
 #ifndef _LAMBDA_RI_H_
 #define _LAMBDA_RI_H_
 
+#include <iostream>
 #include <vector>
 #include <map>
 #include <algorithm>
 #include <limits>
-// #include <iostream>
 #include <string>
 #include <sstream>
 
-#include "debug.h"
+#define log_(type, msg) \
+  std::clog << #type " "<< __FILE__ << ":" << __LINE__ << "] " << __func__ << ":: " << msg << std::endl;
 
 /**********************************************  Term  ******************************************/
+#define VARIABLE 'v'
+#define VALUE 'w'
+#define CONSTANT 'c'
+#define DEFINITION 'd'
+#define APPLICATION 'a'
 class Term {
-  protected:
+  // protected:
+  public:
     /* 'v': <variable>, "identifiers"
      * 'c': <constant>, "predeﬁned objects"
-     * 'a': (<term> <term>*), "applications (function calls)"
      * 'd': `<variable>{, <variable>}*`<term>, "abstractions (function definitions)"
+     * 'a': (<term> <term>*), "applications (function calls)"
      */
     char type;
-  public:
+    
     Term(char type): type(type) {}
     ~Term() {}
     virtual std::string to_ir_str() { return "Should'nt have been called!"; }
@@ -35,45 +42,14 @@ std::ostream & operator<< (std::ostream &os, Term &t) {
   return os << t.to_ir_str();
 }
 
-/*
-template <typename T>
-class Variable : public Term {
-  public:
-    T v;
-    
-    Variable(T v)
-    : Term('v'), v(v)
-    {
-      log_(INFO, "constructed; \n\t" << to_str() )
-    }
-    
-    ~Variable() {}
-    
-    std::string v_to_str(float v) {
-      return std::to_string(v);
-    }
-    
-    std::string v_to_str(std::string v) {
-      return v;
-    }
-    
-    std::string to_ir_str() {
-      return v_to_str(this->v);
-    }
-    
-    std::string to_str() {
-      return "Variable(name= " + v_to_str(this->v) + ")";
-    }
-};
-*/
 class Variable : public Term {
   public:
     std::string name;
     
     Variable(std::string name)
-    : Term('v'), name(name)
+    : Term(VARIABLE), name(name)
     {
-      log_(INFO, "constructed; \n\t" << to_str() )
+      // log_(DEBUG, "constructed; \n\t" << to_str() )
     }
     
     ~Variable() {}
@@ -96,9 +72,9 @@ class Value : public Term {
     float val;
     
     Value(float val)
-    : Term('v'), val(val)
+    : Term(VALUE), val(val)
     {
-      log_(INFO, "constructed; \n\t" << to_str() )
+      // log_(DEBUG, "constructed; \n\t" << to_str() )
     }
     
     ~Value() {}
@@ -124,9 +100,9 @@ class Constant : public Term {
     std::string name;
     
     Constant(std::string name)
-    : Term('c'), name(name)
+    : Term(CONSTANT), name(name)
     {
-      log_(INFO, "constructed; \n\t" << to_str() )
+      // log_(DEBUG, "constructed; \n\t" << to_str() )
     }
     
     ~Constant() {}
@@ -149,18 +125,55 @@ class Constant : public Term {
 
 class Definition : public Term {
   // `<variable>{, <variable>}*`<term>
+  private:
+    std::map<int, int> i_in_var_v__i_in_term_v__m;
   public:
     std::vector<Variable*> var_v;
     Constant* c_;
-    std::vector<int> varperm_pos_to_index_v;
+    std::vector<Term*> term_v;
     
-    Definition(std::vector<Variable*>& var_v, Constant* c_, std::vector<int>& varperm_pos_to_index_v)
-    : Term('d'), var_v(var_v), c_(c_), varperm_pos_to_index_v(varperm_pos_to_index_v)
+    Definition(std::vector<Variable*>& var_v, Constant* c_, std::vector<Term*>& term_v)
+    : Term(DEFINITION), var_v(var_v), c_(c_), term_v(term_v)
     {
-      log_(INFO, "constructed; \n" << to_str() )
+      std::map<std::string, int> i_in_var_v_m;
+      
+      int i = 0;
+      for (std::vector<Variable*>::iterator it = this->var_v.begin(); it != this->var_v.end(); it++) {
+        i_in_var_v_m[(*it)->name] = i;
+        i++;
+      }
+      
+      i = 0;
+      for (std::vector<Term*>::iterator it = this->term_v.begin(); it != this->term_v.end(); it++) {
+        if ((*it)->type == VARIABLE) {
+          if (i_in_var_v_m.find(((Variable*) *it)->name) == i_in_var_v_m.end() ) {
+            log_(ERROR, "Varname is in term_v but not in var_v; term= " << **it << "\n")
+            exit(1);
+          }
+          // i_in_term_v_m[it->name] = i
+          i_in_var_v__i_in_term_v__m[i_in_var_v_m[((Variable*) *it)->name] ] = i;
+        }
+        else if ((*it)->type == VALUE) {
+          i++;
+          continue;
+        }
+        else {
+          log_(ERROR, "Unexpected term in term_v; term= " << **it << "\n")
+          exit(1);
+        }
+        i++;
+      }
+      
+      // log_(DEBUG, "constructed; \n" << to_str() )
     }
     
-    ~Definition() {}
+    ~Definition() {
+      delete c_;
+      for (std::vector<Variable*>::iterator it = this->var_v.begin(); it != this->var_v.end(); it++)
+        delete *it;
+      for (std::vector<Term*>::iterator it = this->term_v.begin(); it != this->term_v.end(); it++)
+        delete *it;
+    }
     
     std::string to_ir_str() {
       std::stringstream ss;
@@ -168,13 +181,13 @@ class Definition : public Term {
       for (std::vector<Variable*>::iterator it = this->var_v.begin(); it != this->var_v.end(); it++) {
         ss << (*it)->to_ir_str();
         if (it != this->var_v.end() - 1)
-          ss << ", ";
+          ss << ",";
       }
       ss << "`(" << this->c_->to_ir_str() << " ";
-      int len = this->varperm_pos_to_index_v.size();
-      for (int i = 0; i < len; i++) {
-        ss << this->var_v[this->varperm_pos_to_index_v[i]]->to_ir_str();
-        if (i != len - 1)
+      
+      for (std::vector<Term*>::iterator it = this->term_v.begin(); it != this->term_v.end(); it++) {
+        ss << (*it)->to_ir_str();
+        if (it != this->term_v.end() - 1)
           ss << " ";
       }
       ss << ")";
@@ -190,10 +203,9 @@ class Definition : public Term {
       ss << "\t]\n" \
          << "\t" << "Constant=" << this->c_->to_str() << "\n" \
          << "\t" << "Parameters=\n";
-      int len = this->varperm_pos_to_index_v.size();
-      for (int i = 0; i < len; i++) {
-        ss << this->var_v[this->varperm_pos_to_index_v[i]]->to_str();
-        if (i != len)
+      for (std::vector<Term*>::iterator it = this->term_v.begin(); it != this->term_v.end(); it++) {
+        ss << (*it)->to_str();
+        if (it != this->term_v.end() - 1)
           ss << ",\n";
       }
       
@@ -202,22 +214,28 @@ class Definition : public Term {
     
     bool is_isomorphic(Term* t_) {
       if (!Term::is_isomorphic(t_) ) {
-        log_(WARNING, "Term::is_isomorphic returned false!\n" \
-          << "this= " << *this << "\n" \
-          << "target= " << *t_ << "\n")
+        // log_(WARNING, "Term::is_isomorphic returned false!\n" \
+        //   << "this= " << *this << "\n" \
+        //   << "target= " << *t_ << "\n")
         return false;
       }
       
       Definition* d_ = ((Definition*) t_);
-      if (this->var_v.size() != d_->var_v.size() )
+      if (var_v.size() != d_->var_v.size() )
         return false;
-      if (!this->c_->is_isomorphic(d_->c_) )
+      if (term_v.size() != d_->term_v.size() )
+        return false;
+      if (!c_->is_isomorphic(d_->c_) )
         return false;
       
-      for (int i = 0; i < this->var_v.size(); i++) {
-        if (this->varperm_pos_to_index_v[i] != d_->varperm_pos_to_index_v[i] )
+      for (int i = 0; i < term_v.size(); i++) {
+        // std::cout << "i= " << i << ", *term_v[i]= " << *term_v[i] << ", *(d_->term_v)[i]= " << *(d_->term_v)[i] << "\n";
+        if (!term_v[i]->is_isomorphic(d_->term_v[i] ) )
           return false;
-        if (!this->var_v[i]->is_isomorphic(d_->var_v[i] ) )
+      }
+      
+      for (std::map<int, int>::iterator it = i_in_var_v__i_in_term_v__m.begin(); it != i_in_var_v__i_in_term_v__m.end(); it++) {
+        if (it->second != d_->i_in_var_v__i_in_term_v__m[it->first] )
           return false;
       }
       
@@ -231,12 +249,15 @@ class Application : public Term {
     std::vector<Term*> term_v;
     
     Application(std::vector<Term*>& term_v)
-    : Term('a'), term_v(term_v)
+    : Term(APPLICATION), term_v(term_v)
     {
-      log_(INFO, "constructed; \n" << to_str() )
+      // log_(DEBUG, "constructed; \n" << to_str() )
     }
     
-    ~Application() {}
+    ~Application() {
+      for (std::vector<Term*>::iterator it = this->term_v.begin(); it != this->term_v.end(); it++)
+        delete *it;
+    }
     
     std::string to_ir_str() {
       std::stringstream ss;
@@ -259,6 +280,22 @@ class Application : public Term {
       ss << "\t]\n)";
       
       return ss.str();
+    }
+    
+    bool is_isomorphic(Term* t_) {
+      if (!Term::is_isomorphic(t_) )
+        return false;
+      
+      Application* a_ = ((Application*) t_);
+      if (term_v.size() != a_->term_v.size() )
+        return false;
+      
+      for (int i = 0; i < term_v.size(); i++) {
+        if (!term_v[i]->is_isomorphic(a_->term_v[i] ) )
+          return false;
+      }
+      
+      return true;
     }
 };
 
