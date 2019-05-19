@@ -17,6 +17,22 @@
       "Navigate:Goto": {
           "mac": "Command-O",
           "win": "Ctrl-O"
+      },
+      "Find:Next": {
+          "win": "Ctrl-K",
+          "mac": "Command-K"
+      },
+      "Find:Previous": {
+          "mac": "Command-Shift-K",
+          "win": "Ctrl-Shift-K"
+      },
+      "Find:Find In Project": {
+          "mac": "Command-Shift-H",
+          "win": "Ctrl-Shift-H"
+      },
+      "Find:All": {
+        "mac": "Command-Shift-F",
+        "win": "Ctrl-Alt-F"
       }
     },
     "commands": {},
