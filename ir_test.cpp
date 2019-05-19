@@ -32,19 +32,47 @@ void test_Definition() {
   var_v.push_back(&x);
   var_v.push_back(&y);
   Constant c("+");
-  std::vector<Term*> term_v;
-  term_v.push_back(&c);
-  term_v.push_back(&x);
-  term_v.push_back(&y);
-  Application a(term_v);
-  Definition d(var_v, &a);
+  std::vector<int> varperm_pos_to_index_v;
+  varperm_pos_to_index_v.push_back(0);
+  varperm_pos_to_index_v.push_back(1);
+  Definition d(var_v, &c, varperm_pos_to_index_v);
   log_(INFO, "d.to_ir_str= " << d.to_ir_str() )
+}
+
+void test_Definition_is_isomorphic() {
+  Variable x("x");
+  Variable y("y");
+  std::vector<Variable*> var_v;
+  var_v.push_back(&x);
+  var_v.push_back(&y);
+  Constant c1("+");
+  std::vector<int> varperm_pos_to_index_v1;
+  varperm_pos_to_index_v1.push_back(0);
+  varperm_pos_to_index_v1.push_back(1);
+  Definition d1(var_v, &c1, varperm_pos_to_index_v1);
+  
+  Variable a("a");
+  Variable b("b");
+  std::vector<Variable*> var_v2;
+  var_v2.push_back(&a);
+  var_v2.push_back(&b);
+  Constant c2("+");
+  std::vector<int> varperm_pos_to_index_v2;
+  varperm_pos_to_index_v2.push_back(0);
+  varperm_pos_to_index_v2.push_back(1);
+  Definition d2(var_v2, &c2, varperm_pos_to_index_v2);
+  
+  log_(INFO, "\n" << \
+    "d1= " << d1 << "\n" \
+    "d2= " << d2 << "\n" \
+    "d1.is_isomorphic(d2)= " << d1.is_isomorphic(&d2) )
 }
 
 int main(int argc , char **argv)
 {
   // test_Application();
-  test_Definition();
+  // test_Definition();
+  test_Definition_is_isomorphic();
   
   return 0;
 }
