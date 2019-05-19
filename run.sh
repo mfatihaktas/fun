@@ -28,7 +28,9 @@ elif [ $1  = 'init' ]; then
     LD_LIBRARY_PATH=/opt/gcc-4.8.2/lib64:$LD_LIBRARY_PATH
     export LD_LIBRARY_PATH
     echo "LD_LIBRARY_PATH=" $LD_LIBRARY_PATH
-fi
+  fi
+elif [ $1  = 'i' ]; then
+  ./ir_test
 else
   echo "Argument did not match!"
 fi
